@@ -49,6 +49,7 @@ public class GroupChatServer {
                 int count = selector.select(2000);
                 //有事件处理
                 if (count > 0) {
+
                     //得到selectionKey集合
                     Iterator<SelectionKey> iterator = selector.selectedKeys().iterator();
                     while (iterator.hasNext()) {
