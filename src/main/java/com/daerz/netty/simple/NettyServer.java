@@ -19,8 +19,11 @@ public class NettyServer {
          * 1. 创建两个线程组bossGroup 和 workerGroup
          * 2. bossGroup只处理连接请求, 真正进行客户端业务处理, 会交给workerGroup完成
          * 3. 两个都是无限循环
+         * 4. bossGroup 和 workerGroup 含有的子线程(NioEventLoop)默认实际 cpu核数*2
+         *    NettyRuntime.availableProcessors() * 2
+         * 5. EventLoop对应一个selector
          */
-        EventLoopGroup bossGroup = new NioEventLoopGroup();
+        EventLoopGroup bossGroup = new NioEventLoopGroup(1);
         EventLoopGroup workerGroup = new NioEventLoopGroup();
 
         //创建服务器端的启动对象, 配置参数
@@ -34,27 +37,33 @@ public class NettyServer {
          * childOption: 设置保存活动连接状态
          * childHandler: 创建一个通信测试对象(匿名对象)
          */
-        bootstrap.group(bossGroup, workerGroup)
-                .channel(NioServerSocketChannel.class)
-                .option(ChannelOption.SO_BACKLOG, 128)
-                .childOption(ChannelOption.SO_KEEPALIVE, true)
-                .childHandler(new ChannelInitializer<SocketChannel>() {
-                    /**
-                     * 给pipeline设置处理器
-                     * 给workerGroup的EventLoop对应的管道设置处理器
-                     * @param channel
-                     * @throws Exception
-                     */
-                    @Override
-                    protected void initChannel(SocketChannel channel) throws Exception {
-                        channel.pipeline().addLast(new NettyServerHandler());
-                    }
-                });
-        System.out.println("服务器 is ready...");
+        try {
+            bootstrap.group(bossGroup, workerGroup)
+                    .channel(NioServerSocketChannel.class)
+                    .option(ChannelOption.SO_BACKLOG, 128)
+                    .childOption(ChannelOption.SO_KEEPALIVE, true)
+                    .childHandler(new ChannelInitializer<SocketChannel>() {
+                        /**
+                         * 给pipeline设置处理器
+                         * 给workerGroup的EventLoop对应的管道设置处理器
+                         * @param channel
+                         * @throws Exception
+                         */
+                        @Override
+                        protected void initChannel(SocketChannel channel) throws Exception {
+                            channel.pipeline().addLast(new NettyServerHandler());
+                        }
+                    });
+            System.out.println("服务器 is ready...");
 
-        //绑定一个端口并且同步, 生成一个ChannelFuture对象
-        ChannelFuture channelFuture = bootstrap.bind(6668).sync();
-        //对关闭通道进行监听
-        channelFuture.channel().closeFuture().sync();
+            //绑定一个端口并且同步, 生成一个ChannelFuture对象
+            ChannelFuture channelFuture = bootstrap.bind(6668).sync();
+            //对关闭通道进行监听
+            channelFuture.channel().closeFuture().sync();
+        } finally {
+            bossGroup.shutdownGracefully();
+            workerGroup.shutdownGracefully();
+        }
+
     }
 }
