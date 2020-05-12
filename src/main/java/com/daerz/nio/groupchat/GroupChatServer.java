@@ -9,6 +9,7 @@ import java.util.Iterator;
 /**
  * @Author 刘小猛 liuxiaomeng@dcocd.cn
  * @Date 2020/5/7
+ * TODO 单Reactor单线程
  */
 public class GroupChatServer {
 
