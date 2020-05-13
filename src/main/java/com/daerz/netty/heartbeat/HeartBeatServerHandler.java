@@ -28,7 +28,6 @@ public class HeartBeatServerHandler extends ChannelInboundHandlerAdapter {
                     state = "读写空闲";
                     break;
                 default:
-                    state = "占位用的";
                     break;
             }
             System.out.println(ctx.channel().remoteAddress() + "----超时时间----" + state);
