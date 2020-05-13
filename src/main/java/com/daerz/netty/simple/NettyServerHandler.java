@@ -6,6 +6,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.CharsetUtil;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * @Author 刘小猛 liuxiaomeng@dcocd.cn
  * @Date 2020/5/11
@@ -23,6 +25,51 @@ public class NettyServerHandler extends ChannelInboundHandlerAdapter {
      */
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+
+        ctx.channel().writeAndFlush(
+                Unpooled.copiedBuffer("hello, 客户端, 我发了一个消息1", CharsetUtil.UTF_8));
+
+        /*
+        现在有个一个非常耗时的业务 -> 异步执行 -> 提交该channel对应的
+        NioEventLoop的taskQueue中
+        1. 解决方案1 用户程序自定义的普通任务(同一个线程处理,所以第二天消息等待时间30s)
+         */
+        ctx.channel().eventLoop().execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Thread.sleep(10 * 1000);
+                    ctx.channel().writeAndFlush(
+                            Unpooled.copiedBuffer("hello, 客户端, 我发了休眠10s的消息2", CharsetUtil.UTF_8));
+                } catch (InterruptedException e) {
+                    System.err.println("发生异常 " + e.getMessage());
+                }
+            }
+        });
+
+        ctx.channel().eventLoop().execute(() -> {
+            try {
+                Thread.sleep(20 * 1000);
+                ctx.channel().writeAndFlush(
+                        Unpooled.copiedBuffer("hello, 客户端, 我发了休眠30s的消息3", CharsetUtil.UTF_8));
+            } catch (InterruptedException e) {
+                System.err.println("发生异常 " + e.getMessage());
+            }
+        });
+
+        /*
+        2. 用户自定义任务 -> 该任务提交到scheduleTaskQueue中
+         */
+        ctx.channel().eventLoop().schedule(() -> {
+            try {
+                Thread.sleep(20 * 1000);
+                ctx.channel().writeAndFlush(
+                        Unpooled.copiedBuffer("hello, 客户端, 我Schedule发了延迟5s后的消息4", CharsetUtil.UTF_8));
+            } catch (InterruptedException e) {
+                System.err.println("发生异常 " + e.getMessage());
+            }
+        }, 5, TimeUnit.SECONDS);
+
         System.out.println("server ctx =" + ctx);
         /*
         将msg转成一个ByteBuf

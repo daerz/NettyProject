@@ -1,5 +1,6 @@
 package com.daerz.netty.simple;
 
+import com.sun.xml.internal.ws.api.model.wsdl.WSDLOutput;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -51,6 +52,11 @@ public class NettyServer {
                          */
                         @Override
                         protected void initChannel(SocketChannel channel) throws Exception {
+                            /*
+                            可以使用集合管理SocketChannel,再推送消息时,可以将业务加入到各个channel
+                            对应的NioEventLoop的taskQueue 或者 scheduleTaskQueue
+                             */
+                            System.out.println("客户socketChannel hashcode = " + channel.hashCode());
                             channel.pipeline().addLast(new NettyServerHandler());
                         }
                     });
@@ -58,6 +64,18 @@ public class NettyServer {
 
             //绑定一个端口并且同步, 生成一个ChannelFuture对象
             ChannelFuture channelFuture = bootstrap.bind(6668).sync();
+            //给channelFuture注册监听器, 监控我们关系的事件
+            channelFuture.addListener(new ChannelFutureListener() {
+                @Override
+                public void operationComplete(ChannelFuture future) throws Exception {
+                    if (future.isSuccess()) {
+                        System.out.println("监听端口 6668 成功");
+                    } else {
+                        System.out.println("监听端口 6668 失败");
+                    }
+                }
+            });
+
             //对关闭通道进行监听
             channelFuture.channel().closeFuture().sync();
         } finally {
